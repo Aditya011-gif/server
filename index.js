@@ -159,6 +159,11 @@ function extractVideosFromInitialData(data) {
   return videos;
 }
 
+// REST Endpoint: Get Authoritative Server Time
+app.get('/api/time', (req, res) => {
+  res.json({ time: Date.now() });
+});
+
 // REST Endpoint: Search YouTube Videos or Playlists
 app.get('/api/search', async (req, res) => {
   const query = req.query.q;
@@ -352,6 +357,13 @@ io.on('connection', (socket) => {
       room.playback.currentTime = currentTime;
       room.playback.isPlaying = isPlaying;
       room.playback.lastUpdated = Date.now();
+      
+      // Broadcast current position to all other clients in the room for real-time drift correction
+      socket.to(roomId).emit('playback_sync_broadcast', {
+        currentTime,
+        isPlaying,
+        timestamp: Date.now()
+      });
     }
   });
 
