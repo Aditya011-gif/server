@@ -316,7 +316,7 @@ io.on('connection', (socket) => {
   });
 
   // 3. Playback Synchronization Actions (Only process if room exists)
-  socket.on('playback_action', ({ action, currentTime }) => {
+  socket.on('playback_action', ({ action, currentTime, timestamp }) => {
     const roomId = socket.roomId;
     if (!roomId) return;
 
@@ -325,13 +325,14 @@ io.on('connection', (socket) => {
 
     // Optional: Only allow host to control, or allow anyone (we will let anyone control for collaborative fun!)
     const isHost = socket.id === room.hostId;
+    const eventTimestamp = timestamp || Date.now();
 
     room.playback.currentTime = currentTime;
-    room.playback.lastUpdated = Date.now();
+    room.playback.lastUpdated = eventTimestamp;
 
     if (action === 'play') {
       room.playback.isPlaying = true;
-      io.to(roomId).emit('playback_play', { currentTime, timestamp: Date.now(), senderId: socket.id });
+      io.to(roomId).emit('playback_play', { currentTime, timestamp: eventTimestamp, senderId: socket.id });
     } else if (action === 'pause') {
       room.playback.isPlaying = false;
       io.to(roomId).emit('playback_pause', { currentTime, senderId: socket.id });
@@ -345,7 +346,7 @@ io.on('connection', (socket) => {
 
   // 4. Client Sync Heartbeat
   // Clients periodically report their state; if the host reports, the server updates its authoritative state.
-  socket.on('playback_sync', ({ currentTime, isPlaying }) => {
+  socket.on('playback_sync', ({ currentTime, isPlaying, timestamp }) => {
     const roomId = socket.roomId;
     if (!roomId) return;
 
@@ -354,15 +355,16 @@ io.on('connection', (socket) => {
 
     // Host updates authoritative position
     if (socket.id === room.hostId) {
+      const eventTimestamp = timestamp || Date.now();
       room.playback.currentTime = currentTime;
       room.playback.isPlaying = isPlaying;
-      room.playback.lastUpdated = Date.now();
+      room.playback.lastUpdated = eventTimestamp;
       
       // Broadcast current position to all other clients in the room for real-time drift correction
       socket.to(roomId).emit('playback_sync_broadcast', {
         currentTime,
         isPlaying,
-        timestamp: Date.now()
+        timestamp: eventTimestamp
       });
     }
   });
