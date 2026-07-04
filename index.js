@@ -271,7 +271,7 @@ app.get('/api/stream', async (req, res) => {
     
     console.log(`[SyncMusic] Extracting stream for video ID: ${videoId}`);
     const yt = await getYoutubeInstance();
-    const info = await yt.getInfo(videoId, { client: 'TV' });
+    const info = await yt.getInfo(videoId, { client: 'YTMUSIC' });
     
     const audioFormat = info.chooseFormat({ type: 'audio', quality: 'best' });
     if (!audioFormat) {
