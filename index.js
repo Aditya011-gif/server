@@ -3,6 +3,11 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const ytSearch = require('yt-search');
+const { Platform } = require('youtubei.js');
+
+Platform.shim.eval = (data) => {
+  return new Function(data.output)();
+};
 
 const app = express();
 app.use(cors());
@@ -266,26 +271,18 @@ app.get('/api/stream', async (req, res) => {
     
     console.log(`[SyncMusic] Extracting stream for video ID: ${videoId}`);
     const yt = await getYoutubeInstance();
-    const info = await yt.getInfo(videoId);
+    const info = await yt.getInfo(videoId, { client: 'TV' });
     
-    const streamingData = info.streamingData;
-    if (!streamingData || !streamingData.adaptiveFormats) {
-      return res.status(404).json({ error: 'No adaptive formats available for this video' });
+    const audioFormat = info.chooseFormat({ type: 'audio', quality: 'best' });
+    if (!audioFormat) {
+      return res.status(404).json({ error: 'No audio formats found for this video' });
     }
     
-    // Filter out audio-only formats that have a deciphered URL
-    const audioFormats = streamingData.adaptiveFormats.filter(
-      format => format.mimeType && format.mimeType.startsWith('audio/') && format.url
-    );
-    
-    if (audioFormats.length === 0) {
-      return res.status(404).json({ error: 'No audio-only streams found for this video' });
+    const streamUrl = await audioFormat.decipher(yt.session.player);
+    if (!streamUrl) {
+      return res.status(404).json({ error: 'Failed to decipher streaming URL' });
     }
     
-    // Sort by highest bitrate
-    audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-    
-    const streamUrl = audioFormats[0].url;
     console.log(`[SyncMusic] Stream URL resolved successfully for: ${videoId}`);
     res.json({ url: streamUrl });
   } catch (error) {

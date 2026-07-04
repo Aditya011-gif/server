@@ -1,23 +1,37 @@
-const ytSearch = require('yt-search');
+const { Innertube, Platform } = require('youtubei.js');
+
+// Custom JS interpreter for deciphering signatures
+Platform.shim.eval = (data) => {
+  console.log('Platform.shim.eval called!');
+  console.log('typeof data:', typeof data);
+  console.log('data keys (if object):', data && typeof data === 'object' ? Object.keys(data) : 'N/A');
+  console.log('data preview:', typeof data === 'string' ? data.slice(0, 100) : JSON.stringify(data).slice(0, 100));
+  
+  // Try both
+  const code = typeof data === 'object' && data.output ? data.output : data;
+  return new Function(code)();
+};
+
 async function test() {
   try {
-    // 1. Search for "lofi album" and look at playlists
-    const r1 = await ytSearch('lofi album');
-    console.log('r1 playlists count:', r1.playlists.length);
-    if (r1.playlists.length > 0) {
-      console.log('r1 first playlist:', JSON.stringify(r1.playlists[0]));
-    }
-
-    // 2. Search for "arijit singh playlist"
-    const r2 = await ytSearch('arijit singh playlist');
-    console.log('r2 playlists count:', r2.playlists.length);
-    if (r2.playlists.length > 0) {
-      console.log('r2 first playlist:', JSON.stringify(r2.playlists[0]));
-    }
+    console.log('Initializing Innertube...');
+    const yt = await Innertube.create();
+    const videoId = 'LUgpPmj6nR8';
     
-    // 3. Let's see the keys of a playlist item if found
-  } catch (e) {
-    console.error(e);
+    console.log('Fetching info for video...');
+    const info = await yt.getInfo(videoId, { client: 'TV' });
+    
+    console.log('Selecting audio format...');
+    const audioFormat = info.chooseFormat({ type: 'audio', quality: 'best' });
+    
+    console.log('Deciphering audio stream URL...');
+    const streamUrl = await audioFormat.decipher(yt.session.player);
+    console.log('\nDeciphered Stream URL successfully resolved!');
+    console.log('Stream URL:', streamUrl);
+    
+  } catch (error) {
+    console.error('Test failed:', error);
   }
 }
+
 test();
