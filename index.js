@@ -247,6 +247,44 @@ app.get('/api/playlist/videos', async (req, res) => {
   }
 });
 
+// Helper to extract audio stream using yt-dlp
+function getAudioStreamUrl(videoId) {
+  const { exec } = require('child_process');
+  return new Promise((resolve, reject) => {
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const command = `yt-dlp -f "ba[ext=m4a]/ba" -g "${videoUrl}"`;
+    
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`[yt-dlp error]`, stderr || error.message);
+        return reject(error);
+      }
+      const url = stdout.trim();
+      if (!url) {
+        return reject(new Error('No stream URL returned by yt-dlp'));
+      }
+      resolve(url);
+    });
+  });
+}
+
+// REST Endpoint: Extract direct audio stream URL using yt-dlp
+app.get('/api/stream-url', async (req, res) => {
+  const videoId = req.query.videoId;
+  if (!videoId) {
+    return res.status(400).json({ error: 'Query parameter "videoId" is required' });
+  }
+
+  try {
+    console.log(`[SyncMusic] Extracting audio stream for videoId: ${videoId}`);
+    const url = await getAudioStreamUrl(videoId);
+    res.json({ url });
+  } catch (error) {
+    console.error(`[SyncMusic] Error extracting stream for ${videoId}:`, error);
+    res.status(500).json({ error: `Failed to extract stream: ${error.message}` });
+  }
+});
+
 // Socket.io Real-time logic
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
