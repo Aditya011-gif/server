@@ -1,12 +1,13 @@
 FROM node:20-bookworm-slim
 
-# Install python3, python3-pip, ffmpeg, and curl
+# Install python3, python3-pip, ffmpeg, curl, and quickjs (for yt-dlp signature deciphering)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         python3 \
         python3-pip \
         ffmpeg \
-        curl && \
+        curl \
+        quickjs && \
     rm -rf /var/lib/apt/lists/*
 
 # Install yt-dlp globally
