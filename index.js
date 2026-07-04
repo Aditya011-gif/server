@@ -259,7 +259,7 @@ app.get('/api/playlist/videos', async (req, res) => {
 function getAudioStreamUrl(videoId) {
   return new Promise((resolve, reject) => {
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    const command = `python3 -m yt-dlp --no-playlist -f "ba[ext=m4a]/ba" -g "${videoUrl}"`;
+    const command = `yt-dlp --no-playlist -f "ba[ext=m4a]/ba" -g "${videoUrl}"`;
     
     exec(command, (error, stdout, stderr) => {
       if (error) {
