@@ -4,14 +4,6 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const ytSearch = require('yt-search');
 
-const { exec } = require('child_process');
-exec("which yt-dlp", (e, stdout, stderr) => {
-  console.log("which yt-dlp:", stdout || stderr);
-});
-exec("python3 -m yt_dlp --version", (e, stdout, stderr) => {
-  console.log("python3 -m yt_dlp:", stdout || stderr);
-});
-
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -252,43 +244,6 @@ app.get('/api/playlist/videos', async (req, res) => {
   } catch (error) {
     console.error('Error fetching playlist videos:', error);
     res.status(500).json({ error: 'Failed to retrieve videos from this playlist/album' });
-  }
-});
-
-// Helper to extract audio stream using yt-dlp
-function getAudioStreamUrl(videoId) {
-  return new Promise((resolve, reject) => {
-    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    const command = `yt-dlp --no-playlist --extractor-args "youtube:player_client=ios,android" -f "ba[ext=m4a]/ba" -g "${videoUrl}"`;
-    
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`[yt-dlp error]`, stderr || error.message);
-        return reject(error);
-      }
-      const url = stdout.trim();
-      if (!url) {
-        return reject(new Error('No stream URL returned by yt-dlp'));
-      }
-      resolve(url);
-    });
-  });
-}
-
-// REST Endpoint: Extract direct audio stream URL using yt-dlp
-app.get('/api/stream-url', async (req, res) => {
-  const videoId = req.query.videoId;
-  if (!videoId) {
-    return res.status(400).json({ error: 'Query parameter "videoId" is required' });
-  }
-
-  try {
-    console.log(`[SyncMusic] Extracting audio stream for videoId: ${videoId}`);
-    const url = await getAudioStreamUrl(videoId);
-    res.json({ url });
-  } catch (error) {
-    console.error(`[SyncMusic] Error extracting stream for ${videoId}:`, error);
-    res.status(500).json({ error: `Failed to extract stream: ${error.message}` });
   }
 });
 
