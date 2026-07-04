@@ -247,6 +247,53 @@ app.get('/api/playlist/videos', async (req, res) => {
   }
 });
 
+// Stream endpoint using youtubei.js
+let ytInstance = null;
+async function getYoutubeInstance() {
+  if (!ytInstance) {
+    const { Innertube } = require('youtubei.js');
+    ytInstance = await Innertube.create();
+  }
+  return ytInstance;
+}
+
+app.get('/api/stream', async (req, res) => {
+  try {
+    const videoId = req.query.id;
+    if (!videoId) {
+      return res.status(400).json({ error: 'Video ID is required' });
+    }
+    
+    console.log(`[SyncMusic] Extracting stream for video ID: ${videoId}`);
+    const yt = await getYoutubeInstance();
+    const info = await yt.getInfo(videoId);
+    
+    const streamingData = info.streamingData;
+    if (!streamingData || !streamingData.adaptiveFormats) {
+      return res.status(404).json({ error: 'No adaptive formats available for this video' });
+    }
+    
+    // Filter out audio-only formats that have a deciphered URL
+    const audioFormats = streamingData.adaptiveFormats.filter(
+      format => format.mimeType && format.mimeType.startsWith('audio/') && format.url
+    );
+    
+    if (audioFormats.length === 0) {
+      return res.status(404).json({ error: 'No audio-only streams found for this video' });
+    }
+    
+    // Sort by highest bitrate
+    audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+    
+    const streamUrl = audioFormats[0].url;
+    console.log(`[SyncMusic] Stream URL resolved successfully for: ${videoId}`);
+    res.json({ url: streamUrl });
+  } catch (error) {
+    console.error('[SyncMusic] Stream extraction error:', error);
+    res.status(500).json({ error: 'Failed to extract streaming audio URL' });
+  }
+});
+
 // Socket.io Real-time logic
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
