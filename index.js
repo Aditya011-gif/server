@@ -257,7 +257,18 @@ let ytInstance = null;
 async function getYoutubeInstance() {
   if (!ytInstance) {
     const { Innertube } = require('youtubei.js');
-    ytInstance = await Innertube.create();
+    const options = {};
+    if (process.env.PO_TOKEN) {
+      options.po_token = process.env.PO_TOKEN;
+    }
+    if (process.env.VISITOR_DATA) {
+      options.visitor_data = process.env.VISITOR_DATA;
+    }
+    console.log('[SyncMusic] Initializing Innertube with options:', {
+      hasPoToken: !!options.po_token,
+      hasVisitorData: !!options.visitor_data
+    });
+    ytInstance = await Innertube.create(options);
   }
   return ytInstance;
 }
