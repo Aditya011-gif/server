@@ -6,7 +6,8 @@ const ytSearch = require('yt-search');
 const { Platform } = require('youtubei.js');
 
 Platform.shim.eval = (data) => {
-  return new Function(data.output)();
+  const code = typeof data === 'object' && data.output ? data.output : data;
+  return new Function(code)();
 };
 
 const app = express();
@@ -299,6 +300,43 @@ app.get('/api/stream', async (req, res) => {
   } catch (error) {
     console.error('[SyncMusic] Stream extraction error:', error);
     res.status(500).json({ error: 'Failed to extract streaming audio URL' });
+  }
+});
+
+const { Readable } = require('stream');
+app.get('/api/proxy', async (req, res) => {
+  try {
+    const streamUrl = req.query.url;
+    if (!streamUrl) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+    
+    console.log(`[SyncMusic] Proxying stream: ${streamUrl.substring(0, 100)}...`);
+    const response = await fetch(streamUrl, {
+      headers: {
+        'User-Agent': 'com.google.android.youtube/20.10.35 (Linux; Android 14)',
+        'Referer': 'https://www.youtube.com/',
+        'Origin': 'https://www.youtube.com'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error(`[SyncMusic] Proxy failed. YouTube responded with status: ${response.status}`);
+      return res.status(response.status).json({ error: `YouTube responded with ${response.status}` });
+    }
+    
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'audio/mp4');
+    const contentLength = response.headers.get('content-length');
+    if (contentLength) {
+      res.setHeader('Content-Length', contentLength);
+    }
+    res.setHeader('Accept-Ranges', 'bytes');
+    
+    const nodeStream = Readable.fromWeb(response.body);
+    nodeStream.pipe(res);
+  } catch (error) {
+    console.error('[SyncMusic] Stream proxy error:', error);
+    res.status(500).json({ error: 'Failed to proxy stream' });
   }
 });
 
